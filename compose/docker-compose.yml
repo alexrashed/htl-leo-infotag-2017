@@ -1,0 +1,93 @@
+# External:
+# - Gogs:       3000
+# - Jenkins:    8080
+# - Registry:   5000
+
+# Internal:
+# - Webhook:    9000
+# - BuildBulb:  8080
+
+version: '3.3'
+services:
+  gogs:
+    image: gogs/gogs:0.11.29
+    container_name: gogs
+    restart: always
+    volumes:
+      - gogs:/data:rw
+    ports:
+      - "22:22"
+      - "3000:3000"
+    
+  gogs-db:
+    image: mysql:5.7
+    container_name: gogs-db
+    restart: always
+    volumes:
+      - ./volumes/gogs-db:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PWD}
+      - MYSQL_DATABASE=gogs
+    
+  jenkins:
+    image: emergya/jenkins-dind:201709070904-9638f05
+    container_name: jenkins
+    restart: always
+    privileged: true
+    entrypoint: ""
+    command: bash -c "update-java-alternatives --jre-headless -s java-1.8.0-openjdk-amd64 & /assets/bin/entrypoint"
+    volumes:
+      - ./volumes/jenkins:/var/jenkins_home:rw
+    ports:
+      - "8080:8080"
+    environment:
+      - DOCKER_DAEMON_ARGS="--insecure-registry\ registry:5000"
+    
+  registry:
+    image: registry:2.6
+    container_name: registry
+    restart: always
+    volumes:
+      - ./volumes/registry:/var/lib/registry
+    ports:
+      - "5000:5000"
+    environment:
+      REGISTRY_STORAGE_DELETE_ENABLED: "true"
+      REGISTRY_NOTIFICATIONS_ENDPOINTS: >
+        - name: redeployer
+          url: http://redeployer:9000/hooks/infotag
+          timeout: 5000ms
+          threshold: 2
+          backoff: 20s
+  
+  buildbulb:
+    image: alexrashed/buildbulb
+    container_name: buildbulb
+    restart: always
+    environment:
+      - BULB_NAME=${LIFX_BULB_NAME}
+      - API_KEY=${LIFX_API_KEY}
+      
+  redeployer:
+    image: alexrashed/webhook-compose
+    container_name: redeployer
+    privileged: true
+    restart: always
+    command: -verbose -hooks=/scripts/hooks.json -hotreload
+    volumes:
+      - ./config/webhook:/scripts
+      - ./product:/workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+    - TOKEN=infotag
+    - DOCKER_DAEMON_ARGS="--insecure-registry\ registry:5000"
+
+volumes:
+  gogs:
+    external:
+      name: htl-infotag-gogs
+    
+networks:
+  default:
+    external:
+      name: htl-infotag

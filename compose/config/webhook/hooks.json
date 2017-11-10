@@ -1,0 +1,20 @@
+[
+  {
+    "id": "infotag",
+    "execute-command": "/scripts/redeploy.sh",
+    "command-working-directory": "/workspace",
+	"trigger-rule":
+    {
+      "match":
+      {
+        "type": "value",
+        "value": "push",
+        "parameter":
+        {
+          "source": "payload",
+          "name": "events.0.action"
+        }
+      }
+    }
+  }
+]
