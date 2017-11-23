@@ -1,7 +1,6 @@
 version: '3.3'
 services:
   infotag:
-    container_name: hello-infotag
     image: localhost:5000/nts/htl-infotag
     ports:
     - "8081:8080"
